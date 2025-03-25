@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Início{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <!-- Coluna do formulário de avaliação -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Avaliar Bairro</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'avaliar_bairro' %}">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            {{ form.bairro|as_crispy_field }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.nota.id_for_label }}" class="form-label">Nota*</label>
+                            <div class="nota-container">
+                                {% for radio in form.nota %}
+                                <div class="form-check nota-option">
+                                    {{ radio.tag }}
+                                    <label class="form-check-label nota-label" for="{{ radio.id_for_label }}">
+                                        {{ radio.choice_label }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div id="feedback-nota" class="mt-2 text-muted fst-italic"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.comentario|as_crispy_field }}
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Enviar Avaliação</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna do gráfico -->
+        <div class="col-md-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Classificação dos Bairros</h4>
+                </div>
+                <div class="card-body">
+                    <canvas id="bairrosChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Seção de avaliações recentes -->
+    <div class="mt-4">
+        <h3 class="mb-3">Avaliações Recentes</h3>
+        <div class="row">
+            {% for avaliacao in avaliacoes_recentes %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">{{ avaliacao.bairro.nome }}</h5>
+                        <span class="badge bg-primary rounded-pill">{{ avaliacao.nota }}/10</span>
+                    </div>
+                    <div class="card-body">
+                        {% if avaliacao.comentario %}
+                        <p>{{ avaliacao.comentario }}</p>
+                        {% else %}
+                        <p class="text-muted">Sem comentário</p>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer text-muted">
+                        <small>Avaliado por {{ avaliacao.usuario.username }} em {{ avaliacao.data_criacao|date:"d/m/Y"
+                            }}</small>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    Nenhuma avaliação ainda. Seja o primeiro a avaliar um bairro!
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // Inicializar Select2 para o campo de bairro
+    $(document).ready(function () {
+        $('select[name="bairro"]').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Selecione um bairro ou digite para buscar',
+            allowClear: true,
+            width: '100%'
+        });
+    });
+
+    // Dados para o gráfico
+    const dadosGrafico = {{ dados_grafico| safe }};
+
+    // Extrair nomes e médias
+    const nomes = dadosGrafico.map(item => item.nome);
+    const medias = dadosGrafico.map(item => item.media);
+    const cores = medias.map(value => {
+        if (value >= 8) return '#198754'; // Verde para bairros bem avaliados
+        if (value >= 5) return '#ffc107'; // Amarelo para bairros médios
+        return '#dc3545'; // Vermelho para bairros mal avaliados
+    });
+
+    // Criar o gráfico
+    const ctx = document.getElementById('bairrosChart').getContext('2d');
+    const bairrosChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: nomes,
+            datasets: [{
+                label: 'Média de Avaliações (1-10)',
+                data: medias,
+                backgroundColor: cores,
+                borderColor: cores,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    max: 10
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // Script para obter localização do usuário para sugerir bairros próximos
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function (position) {
+            console.log("Localização obtida:", position.coords.latitude, position.coords.longitude);
+            // Aqui poderíamos usar a localização para mostrar os bairros mais próximos
+        });
+    }
+
+    // Script para animar a seleção da nota
+    document.querySelectorAll('.nota-option input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', function () {
+            // Remove a classe 'selected' de todos os labels
+            document.querySelectorAll('.nota-label').forEach(label => {
+                label.classList.remove('selected');
+            });
+
+            // Adiciona a classe 'selected' apenas ao label correspondente ao radio selecionado
+            if (this.checked) {
+                this.nextElementSibling.classList.add('selected');
+
+                // Mostrar mensagem baseada na nota
+                const nota = parseInt(this.value);
+                let mensagem = "";
+
+                if (nota >= 8) {
+                    mensagem = "Excelente avaliação!";
+                } else if (nota >= 6) {
+                    mensagem = "Boa avaliação!";
+                } else if (nota >= 4) {
+                    mensagem = "Avaliação mediana.";
+                } else {
+                    mensagem = "Avaliação negativa.";
+                }
+
+                // Opcional: mostrar a mensagem em algum elemento
+                document.getElementById('feedback-nota').textContent = mensagem;
+            }
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}
