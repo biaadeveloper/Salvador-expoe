@@ -1,5 +1,5 @@
 """
-WSGI config for salvador_expoe project.
+WSGI config for Salvador_expoe project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'salvador_expoe.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Salvador_expoe.settings')
 
 application = get_wsgi_application()

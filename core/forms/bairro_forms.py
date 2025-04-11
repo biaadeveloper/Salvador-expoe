@@ -201,4 +201,5 @@ class AvaliacaoForm(forms.ModelForm):
 
     class Meta:
         model = Avaliacao
-        fields = ['bairro', 'nota', 'comentario']
+        # Removendo 'bairro' daqui pois já foi definido acima
+        fields = ['nota', 'comentario']

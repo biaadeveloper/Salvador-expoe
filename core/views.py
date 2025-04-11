@@ -72,16 +72,9 @@ def avaliar_bairro(request):
     if request.method == 'POST':
         form = AvaliacaoForm(request.POST)
         if form.is_valid():
-            avaliacao = form.save(commit=False)
-            avaliacao.usuario = request.user
-
-            # Converter a nota de string para inteiro
-            avaliacao.nota = int(form.cleaned_data['nota'])
-
             # Obter ou criar o bairro pelo nome
             nome_bairro = form.cleaned_data['bairro']
             bairro, _ = Bairro.objects.get_or_create(nome=nome_bairro)
-            avaliacao.bairro = bairro
 
             # Verificar se já existe avaliação para este bairro por este usuário
             avaliacao_existente = Avaliacao.objects.filter(
@@ -98,6 +91,10 @@ def avaliar_bairro(request):
                     request, 'Sua avaliação foi atualizada com sucesso!')
             else:
                 # Criar nova avaliação
+                avaliacao = form.save(commit=False)
+                avaliacao.usuario = request.user
+                avaliacao.bairro = bairro
+                avaliacao.nota = int(form.cleaned_data['nota'])
                 avaliacao.save()
                 messages.success(
                     request, 'Sua avaliação foi registrada com sucesso!')
